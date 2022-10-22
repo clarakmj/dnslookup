@@ -39,6 +39,42 @@ public class DNSQueryHandler {
         verboseTracing = tracing;
     }
 
+
+    // Converts an ASCII domain like www.cs.ubc.ca to HEX representation 03 77 77 77 02 63 73 03 75 62 63 02 63 61 00
+    // source for String.format: https://stackoverflow.com/questions/18215336/what-does-b-0xff-mean
+    public static String createEncodedQName(DNSNode node) throws IOException {
+        // www.cs.ubc.ca
+        // keep a global StringBuffer to concat the big parts
+        // keep a local StringBuffer to create the 77 77 77
+        // then a counter until . is  hit, append the counter to the global StringBuffer and contents of the local up until that point
+        // then reset the counter and
+        String name = node.getHostName();
+        StringBuffer sbName = new StringBuffer();
+        StringBuffer sbNameParts = new StringBuffer();
+        int counter = 0;
+        for(int i = 0; i <= name.length(); i++) {
+            if (i == name.length()) {
+                sbName.append(String.format("%02x", counter & 0xff) + " ");
+                sbName.append(sbNameParts);
+                continue;
+            }
+            Character c = name.charAt(i);
+            if (c.equals('.')) {
+                sbName.append(String.format("%02x", counter & 0xff) + " ");
+                sbName.append(sbNameParts);
+                sbNameParts.setLength(0);
+                counter = 0;
+                continue;
+            }
+            String hexString = String.format("%02x", c & 0xff);
+            sbNameParts.append(hexString + " ");
+            counter++;
+        }
+        sbName.append("00"); // 00 byte to end the QNAME
+        String encodedQuestion = sbName.toString().trim();
+        return encodedQuestion;
+    }
+
     /**
      * Builds the query, sends it to the server, and returns the response.
      *
@@ -51,6 +87,7 @@ public class DNSQueryHandler {
     public static DNSServerResponse buildAndSendQuery(byte[] message, InetAddress server,
                                                       DNSNode node) throws IOException {
         // TODO (PART 1): Implement this
+        System.out.println(DNSQueryHandler.createEncodedQName(node));
         return null;
     }
 
