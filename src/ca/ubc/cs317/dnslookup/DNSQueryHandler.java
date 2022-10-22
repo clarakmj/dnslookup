@@ -54,20 +54,20 @@ public class DNSQueryHandler {
         int counter = 0;
         for(int i = 0; i <= name.length(); i++) {
             if (i == name.length()) {
-                sbName.append(String.format("%02x", counter & 0xff) + " ");
+                sbName.append(String.format("%02x", counter & 0xff));
                 sbName.append(sbNameParts);
                 continue;
             }
             Character c = name.charAt(i);
             if (c.equals('.')) {
-                sbName.append(String.format("%02x", counter & 0xff) + " ");
+                sbName.append(String.format("%02x", counter & 0xff));
                 sbName.append(sbNameParts);
                 sbNameParts.setLength(0);
                 counter = 0;
                 continue;
             }
             String hexString = String.format("%02x", c & 0xff);
-            sbNameParts.append(hexString + " ");
+            sbNameParts.append(hexString);
             counter++;
         }
         sbName.append("00"); // 00 byte to end the QNAME
@@ -86,8 +86,47 @@ public class DNSQueryHandler {
      */
     public static DNSServerResponse buildAndSendQuery(byte[] message, InetAddress server,
                                                       DNSNode node) throws IOException {
-        // TODO (PART 1): Implement this
-        System.out.println(DNSQueryHandler.createEncodedQName(node));
+        StringBuffer queryBuffer = new StringBuffer();
+
+        // QUERY ID SECTION:
+        int queryID = random.nextInt();
+        String hexQueryID = String.format("%04x", queryID & 0xff);
+        queryBuffer.append(hexQueryID);
+
+        // QR | OPCODE | AA section and response code sections:
+        String queryCodes = "0000";
+        queryBuffer.append(queryCodes);
+
+        // QDCOUNT - We only send 1 question with each query
+        String queryCount = "0001";
+        queryBuffer.append(queryCount);
+
+        // ANCOUNT - 0 for query
+        String ansCount = "0000";
+        queryBuffer.append(ansCount);
+
+        // NSCOUNT / name server records - 0 for query
+        String nsCount = "0000";
+        queryBuffer.append(nsCount);
+
+        // ARCOUNT / additional records - 0 for query
+        String arCount = "0000";
+        queryBuffer.append(arCount);
+
+        // QName:
+        queryBuffer.append(DNSQueryHandler.createEncodedQName(node));
+
+        // QTYPE:
+        String qType = String.format("%04x", node.getType().getCode() & 0xff);
+        queryBuffer.append(qType);
+
+        // QClass:
+        String qClass = "0001"; // 1 for IN or Internet
+        queryBuffer.append(qClass);
+
+        String query = queryBuffer.toString();
+        System.out.println(query);
+        
         return null;
     }
 
