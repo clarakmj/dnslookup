@@ -65,7 +65,10 @@ public class DNSQueryHandler {
 
         // QR | OPCODE | AA section and response code sections:
         int queryCodes = 0;
-        nameDataOutputStream.writeShort(queryCodes);
+//        nameDataOutputStream.writeShort(queryCodes); // UNCOMMENT THIS LINE
+        // TODO: CHANGE THIS BACK BEFORE FINAL SUBMISSION
+        nameDataOutputStream.writeByte(1); //REMOVE THIS LINE - REQUESTS RECURSION
+        nameDataOutputStream.writeByte(0); //REMOVE THIS LINE
 
         // QDCOUNT - We only send 1 question with each query
         int queryCount = 1;
@@ -126,6 +129,7 @@ public class DNSQueryHandler {
                     }
                     catch (SocketTimeoutException e2) {
                         // On second time out, print the record with a -1
+                        // TODO: Does this require return anything other than null here?
                         return null;
                     }
                 }
@@ -144,6 +148,16 @@ public class DNSQueryHandler {
     public static Set<ResourceRecord> decodeAndCacheResponse(int transactionID, ByteBuffer responseBuffer,
                                                              DNSCache cache) {
         // TODO (PART 1): Implement this
+        System.out.println(responseBuffer);
+        int serverTxID = responseBuffer.getShort(0);
+        int flagBits = responseBuffer.get(2);
+        boolean isResponse = ((flagBits >>> 7) & 1) != 0;
+        boolean isAuthoritativeAns = ((flagBits >>> 3) & 1) != 0;
+        int responseCode = responseBuffer.get(3) & 15; // 0 if no error,  1 - 5 means errors
+        int ansCount = responseBuffer.getShort(6);
+        int nsCount = responseBuffer.getShort(8);
+        int arCount = responseBuffer.getShort(10);
+
         return null;
     }
 
