@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
@@ -137,6 +139,45 @@ public class DNSQueryHandler {
         }
     }
 
+    public static String decodeName(ByteBuffer responseBuffer, int startBuffPos) throws IOException {
+
+        //TODO: For testing only, remove this entire codeblock when done
+        String temp = "www.cs.ubc.ca";
+        String[] tempParts = temp.split("\\.");
+        ByteArrayOutputStream nameBytesOutputStream = new ByteArrayOutputStream();
+        DataOutputStream nameDataOutputStream = new DataOutputStream(nameBytesOutputStream);
+        for(int i = 0; i < tempParts.length; i++) {
+            byte[] domainBytes = tempParts[i].getBytes(StandardCharsets.UTF_8);
+            nameDataOutputStream.writeByte(domainBytes.length);
+            nameDataOutputStream.write(domainBytes);
+        }
+        nameDataOutputStream.writeByte(0); // 00 byte to end the QNAME
+        responseBuffer = ByteBuffer.wrap(nameBytesOutputStream.toByteArray());
+        // delete above
+
+        // Function to get the name / cname
+        byte[] buffer = responseBuffer.array();
+        int pos = startBuffPos;
+        List<String> nameParts = new ArrayList<String>();
+        while (buffer[pos] != 0) {
+            // if the first two bits of the byte is 11 then we have a pointer, if 00 then label
+            if (((buffer[pos] >>> 6) & 3) == 3) {
+                int offset = responseBuffer.getShort(pos) & 16383; // 16383 == 0011111111111111 in binary
+                pos = offset;
+            } else {
+                int length = responseBuffer.get(pos) & 15; // 15 == 001111 in binary
+                StringBuffer sb = new StringBuffer();
+                for (int i = pos + 1; i < pos + length + 1 ; i++) {
+                    sb.append((char) responseBuffer.get(i));
+                }
+                nameParts.add(sb.toString());
+                pos += length + 1;
+            }
+        }
+        String name = String.join(".", nameParts);
+        return name;
+    }
+
     /**
      * Decodes the DNS server response and caches it.
      *
@@ -148,7 +189,6 @@ public class DNSQueryHandler {
     public static Set<ResourceRecord> decodeAndCacheResponse(int transactionID, ByteBuffer responseBuffer,
                                                              DNSCache cache) {
         // TODO (PART 1): Implement this
-        System.out.println(responseBuffer);
         int serverTxID = responseBuffer.getShort(0);
         int flagBits = responseBuffer.get(2);
         boolean isResponse = ((flagBits >>> 7) & 1) != 0;
@@ -157,6 +197,26 @@ public class DNSQueryHandler {
         int ansCount = responseBuffer.getShort(6);
         int nsCount = responseBuffer.getShort(8);
         int arCount = responseBuffer.getShort(10);
+
+        byte[] buffer = responseBuffer.array();
+        int buffPos = 12;
+        while (buffPos < buffer.length ) {
+        // Check # of queries, get past them
+
+        // Check # resources records
+        // Based on Type, parse the bytes after the name differently then create the resource record
+
+
+            try {
+                // Check if decodeName needs to be used, 11 or 00
+                // if 00 then run decodeName and advance the counter by length of the name + name.split(\\.).length() + 1
+                // if 11 then run decodeName and advance the counter by 2
+                String name = decodeName(responseBuffer, 0);
+
+            } catch (IOException e) {
+                //
+            }
+        }
 
         return null;
     }
