@@ -168,11 +168,11 @@ public class DNSQueryHandler {
             // if the first two bits of the byte is 11 then we have a pointer, if 00 then label
             if (((buffer[pos] >>> 6) & 3) == 3) {
                 int offset = responseBuffer.getShort(pos) & 16383; // 16383 == 0011111111111111 in binary
-                pos = offset;
                 if (pointerEncountered == false) {
                     pointerEncountered = true;
                     restoreBuffPosAfterPointer = pos + 2;
                 }
+                pos = offset;
             } else {
                 int length = responseBuffer.get(pos) & 15; // 15 == 001111 in binary
                 StringBuffer sb = new StringBuffer();
@@ -183,9 +183,10 @@ public class DNSQueryHandler {
                 pos += length + 1;
             }
         }
+        if (pointerEncountered) {
+            pos = restoreBuffPosAfterPointer; // TODO: change pos to DNSQueryHandler.pos
+        }
         String name = String.join(".", nameParts);
-
-        pos = restoreBuffPosAfterPointer; // TODO: change pos to DNSQueryHandler.pos
         return name;
     }
 
