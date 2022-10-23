@@ -1,8 +1,11 @@
 package ca.ubc.cs317.dnslookup;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.*;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Random;
 import java.util.Set;
 
@@ -40,41 +43,6 @@ public class DNSQueryHandler {
     }
 
 
-    // Converts an ASCII domain like www.cs.ubc.ca to HEX representation 03 77 77 77 02 63 73 03 75 62 63 02 63 61 00
-    // source for String.format: https://stackoverflow.com/questions/18215336/what-does-b-0xff-mean
-    public static String createEncodedQName(DNSNode node) throws IOException {
-        // www.cs.ubc.ca
-        // keep a global StringBuffer to concat the big parts
-        // keep a local StringBuffer to create the 77 77 77
-        // then a counter until . is  hit, append the counter to the global StringBuffer and contents of the local up until that point
-        // then reset the counter and
-        String name = node.getHostName();
-        StringBuffer sbName = new StringBuffer();
-        StringBuffer sbNameParts = new StringBuffer();
-        int counter = 0;
-        for(int i = 0; i <= name.length(); i++) {
-            if (i == name.length()) {
-                sbName.append(String.format("%02x", counter & 0xff));
-                sbName.append(sbNameParts);
-                continue;
-            }
-            Character c = name.charAt(i);
-            if (c.equals('.')) {
-                sbName.append(String.format("%02x", counter & 0xff));
-                sbName.append(sbNameParts);
-                sbNameParts.setLength(0);
-                counter = 0;
-                continue;
-            }
-            String hexString = String.format("%02x", c & 0xff);
-            sbNameParts.append(hexString);
-            counter++;
-        }
-        sbName.append("00"); // 00 byte to end the QNAME
-        String encodedQuestion = sbName.toString().trim();
-        return encodedQuestion;
-    }
-
     /**
      * Builds the query, sends it to the server, and returns the response.
      *
@@ -86,48 +54,83 @@ public class DNSQueryHandler {
      */
     public static DNSServerResponse buildAndSendQuery(byte[] message, InetAddress server,
                                                       DNSNode node) throws IOException {
-        StringBuffer queryBuffer = new StringBuffer();
+        String name = node.getHostName();
+        String[] nameParts = name.split("\\.");
+        ByteArrayOutputStream nameBytesOutputStream = new ByteArrayOutputStream();
+        DataOutputStream nameDataOutputStream = new DataOutputStream(nameBytesOutputStream);
 
         // QUERY ID SECTION:
-        int queryID = random.nextInt();
-        String hexQueryID = String.format("%04x", queryID & 0xff);
-        queryBuffer.append(hexQueryID);
+        int queryID = random.nextInt(65535);
+        nameDataOutputStream.writeShort(queryID);
 
         // QR | OPCODE | AA section and response code sections:
-        String queryCodes = "0000";
-        queryBuffer.append(queryCodes);
+        int queryCodes = 0;
+        nameDataOutputStream.writeShort(queryCodes);
 
         // QDCOUNT - We only send 1 question with each query
-        String queryCount = "0001";
-        queryBuffer.append(queryCount);
+        int queryCount = 1;
+        nameDataOutputStream.writeShort(queryCount);
 
         // ANCOUNT - 0 for query
-        String ansCount = "0000";
-        queryBuffer.append(ansCount);
+        int ansCount = 0;
+        nameDataOutputStream.writeShort(ansCount);
 
         // NSCOUNT / name server records - 0 for query
-        String nsCount = "0000";
-        queryBuffer.append(nsCount);
+        int nsCount = 0;
+        nameDataOutputStream.writeShort(nsCount);
 
         // ARCOUNT / additional records - 0 for query
-        String arCount = "0000";
-        queryBuffer.append(arCount);
+        int arCount = 0;
+        nameDataOutputStream.writeShort(arCount);
 
-        // QName:
-        queryBuffer.append(DNSQueryHandler.createEncodedQName(node));
+        // QNAME:
+        // Converts an ASCII domain like www.cs.ubc.ca to byte representation
+        // source for byte writing: https://levelup.gitconnected.com/dns-request-and-response-in-java-acbd51ad3467
+        for(int i = 0; i < nameParts.length; i++) {
+            byte[] domainBytes = nameParts[i].getBytes(StandardCharsets.UTF_8);
+            nameDataOutputStream.writeByte(domainBytes.length);
+            nameDataOutputStream.write(domainBytes);
+        }
+        nameDataOutputStream.writeByte(0); // 00 byte to end the QNAME
 
         // QTYPE:
-        String qType = String.format("%04x", node.getType().getCode() & 0xff);
-        queryBuffer.append(qType);
+        int qType = node.getType().getCode();
+        nameDataOutputStream.writeShort(qType);
 
         // QClass:
-        String qClass = "0001"; // 1 for IN or Internet
-        queryBuffer.append(qClass);
+        int qClass = 1; // 1 for IN or Internet
+        nameDataOutputStream.writeShort(qClass);
 
-        String query = queryBuffer.toString();
-        System.out.println(query);
-        
-        return null;
+        message = nameBytesOutputStream.toByteArray();
+
+        DatagramPacket udpPacketSend = new DatagramPacket(message, message.length, server, DEFAULT_DNS_PORT);
+        socket.send(udpPacketSend);
+
+        byte[] responseData = new byte[1024];
+        DatagramPacket udpPacketReceive = new DatagramPacket(responseData, responseData.length, server, DEFAULT_DNS_PORT);
+
+        // source: https://stackoverflow.com/questions/10556829/sending-and-receiving-udp-packets
+        while (true) {
+            try {
+                socket.receive(udpPacketReceive);
+                return new DNSServerResponse(ByteBuffer.wrap(udpPacketReceive.getData()), queryID);
+            }
+            catch (SocketTimeoutException e) {
+                // Time out after 5 seconds
+                // Send and receive again on first time out
+                socket.send(udpPacketSend);
+                while (true) {
+                    try {
+                        socket.receive(udpPacketReceive);
+                        return new DNSServerResponse(ByteBuffer.wrap(udpPacketReceive.getData()), queryID);
+                    }
+                    catch (SocketTimeoutException e2) {
+                        // On second time out, print the record with a -1
+                        return null;
+                    }
+                }
+            }
+        }
     }
 
     /**
