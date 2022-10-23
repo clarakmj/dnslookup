@@ -139,7 +139,7 @@ public class DNSQueryHandler {
         }
     }
 
-    public static String decodeName(ByteBuffer responseBuffer, int startBuffPos) throws IOException {
+    public static String decodeName(ByteBuffer responseBuffer, int startBuffPos) {
 
 //        //TODO: For testing only, remove this entire codeblock when done
 //        String temp = "www.cs.ubc.ca";
@@ -159,11 +159,20 @@ public class DNSQueryHandler {
         byte[] buffer = responseBuffer.array();
         int pos = startBuffPos;
         List<String> nameParts = new ArrayList<String>();
+
+        //
+        boolean pointerEncountered = false;
+        int restoreBuffPosAfterPointer = 0;
+
         while (buffer[pos] != 0) {
             // if the first two bits of the byte is 11 then we have a pointer, if 00 then label
             if (((buffer[pos] >>> 6) & 3) == 3) {
                 int offset = responseBuffer.getShort(pos) & 16383; // 16383 == 0011111111111111 in binary
                 pos = offset;
+                if (pointerEncountered == false) {
+                    pointerEncountered = true;
+                    restoreBuffPosAfterPointer = pos + 2;
+                }
             } else {
                 int length = responseBuffer.get(pos) & 15; // 15 == 001111 in binary
                 StringBuffer sb = new StringBuffer();
@@ -175,6 +184,8 @@ public class DNSQueryHandler {
             }
         }
         String name = String.join(".", nameParts);
+
+        pos = restoreBuffPosAfterPointer; // TODO: change pos to DNSQueryHandler.pos
         return name;
     }
 
@@ -200,21 +211,31 @@ public class DNSQueryHandler {
 
         byte[] buffer = responseBuffer.array();
         int buffPos = 12;
-        while (buffPos < buffer.length ) {
-        // Check # of queries, get past them
 
-        // Check # resources records
-        // Based on Type, parse the bytes after the name differently then create the resource record
+        // Process query question section
+
+        String queryName = decodeName(responseBuffer, 12);
+
+        // TODO:
+        /*
+        We may need to have a private DNSQueryHandler.bufferPos int to share between decodeAndCacheResponse and decodeName to keep
+        track of where we currently are in the buffer. Consider the case label + pointer. In decodeName, have a flag that toggles
+        on first encounter of a pointer. In that first encounter, save the current position + 2, so we resume after the pointer
+         */
 
 
-            try {
-                // Check if decodeName needs to be used, 11 or 00
-                // if 00 then run decodeName and advance the counter by length of the name + name.split(\\.).length() + 1
-                // if 11 then run decodeName and advance the counter by 2
-                String name = decodeName(responseBuffer, 0);
+        // Should now be in the Answers Section
+        // Check # resources records, then do below
+        if (ansCount + nsCount + arCount > 0) {
+            while (buffPos < buffer.length ) {
 
-            } catch (IOException e) {
-                //
+
+            // Decode a name
+            String name = decodeName(responseBuffer, buffPos);
+
+            // Based on Type (A, NS, CNAME), parse the bytes after the name differently then create the resource record
+
+
             }
         }
 
