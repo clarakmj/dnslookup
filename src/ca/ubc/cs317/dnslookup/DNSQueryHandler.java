@@ -19,6 +19,8 @@ public class DNSQueryHandler {
 
     private static final Random random = new Random();
 
+    private static int decodeCounter = 0;
+
     /**
      * Sets up the socket and set the timeout to 5 seconds
      *
@@ -139,7 +141,7 @@ public class DNSQueryHandler {
         }
     }
 
-    public static String decodeName(ByteBuffer responseBuffer, int startBuffPos) {
+    public static String decodeName(ByteBuffer responseBuffer) {
 
 //        //TODO: For testing only, remove this entire codeblock when done
 //        String temp = "www.cs.ubc.ca";
@@ -157,35 +159,35 @@ public class DNSQueryHandler {
 
         // Function to get the name / cname
         byte[] buffer = responseBuffer.array();
-        int pos = startBuffPos;
         List<String> nameParts = new ArrayList<String>();
 
         //
         boolean pointerEncountered = false;
         int restoreBuffPosAfterPointer = 0;
 
-        while (buffer[pos] != 0) {
+        while (buffer[decodeCounter] != 0) {
             // if the first two bits of the byte is 11 then we have a pointer, if 00 then label
-            if (((buffer[pos] >>> 6) & 3) == 3) {
-                int offset = responseBuffer.getShort(pos) & 16383; // 16383 == 0011111111111111 in binary
+            if (((buffer[decodeCounter] >>> 6) & 3) == 3) {
+                int offset = responseBuffer.getShort(decodeCounter) & 16383; // 16383 == 0011111111111111 in binary
                 if (pointerEncountered == false) {
                     pointerEncountered = true;
-                    restoreBuffPosAfterPointer = pos + 2;
+                    restoreBuffPosAfterPointer = decodeCounter + 1;
                 }
-                pos = offset;
+                decodeCounter = offset;
             } else {
-                int length = responseBuffer.get(pos) & 15; // 15 == 001111 in binary
+                int length = responseBuffer.get(decodeCounter) & 15; // 15 == 001111 in binary
                 StringBuffer sb = new StringBuffer();
-                for (int i = pos + 1; i < pos + length + 1 ; i++) {
+                for (int i = decodeCounter + 1; i < decodeCounter + length + 1 ; i++) {
                     sb.append((char) responseBuffer.get(i));
                 }
                 nameParts.add(sb.toString());
-                pos += length + 1;
+                decodeCounter += length + 1;
             }
         }
         if (pointerEncountered) {
-            pos = restoreBuffPosAfterPointer; // TODO: change pos to DNSQueryHandler.pos
+            decodeCounter = restoreBuffPosAfterPointer;
         }
+        decodeCounter += 1; // SHOULD drop our decode counter to just after the name itself. Ready to parse more afterwards
         String name = String.join(".", nameParts);
         return name;
     }
@@ -211,12 +213,14 @@ public class DNSQueryHandler {
         int arCount = responseBuffer.getShort(10);
 
         byte[] buffer = responseBuffer.array();
-        int buffPos = 12;
+        decodeCounter = 12;
 
         // Process query question section
+        String queryName = decodeName(responseBuffer);
+        decodeCounter += 4; // Move past 4 bytes of irrelevant query data
 
-        String queryName = decodeName(responseBuffer, 12);
-
+        // TODO: Testing that we are in the first name answer record section now
+        String ansName = decodeName(responseBuffer);
         // TODO:
         /*
         We may need to have a private DNSQueryHandler.bufferPos int to share between decodeAndCacheResponse and decodeName to keep
@@ -227,18 +231,18 @@ public class DNSQueryHandler {
 
         // Should now be in the Answers Section
         // Check # resources records, then do below
-        if (ansCount + nsCount + arCount > 0) {
-            while (buffPos < buffer.length ) {
-
-
-            // Decode a name
-            String name = decodeName(responseBuffer, buffPos);
-
-            // Based on Type (A, NS, CNAME), parse the bytes after the name differently then create the resource record
-
-
-            }
-        }
+//        if (ansCount + nsCount + arCount > 0) {
+//            while (buffPos < buffer.length ) {
+//
+//
+//            // Decode a name
+//            String name = decodeName(responseBuffer);
+//
+//            // Based on Type (A, NS, CNAME), parse the bytes after the name differently then create the resource record
+//
+//
+//            }
+//        }
 
         return null;
     }
