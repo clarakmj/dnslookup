@@ -160,8 +160,7 @@ public class DNSQueryHandler {
         // Function to get the name / cname
         byte[] buffer = responseBuffer.array();
         List<String> nameParts = new ArrayList<String>();
-
-        //
+        
         boolean pointerEncountered = false;
         int restoreBuffPosAfterPointer = 0;
 
@@ -202,7 +201,6 @@ public class DNSQueryHandler {
      */
     public static Set<ResourceRecord> decodeAndCacheResponse(int transactionID, ByteBuffer responseBuffer,
                                                              DNSCache cache) {
-        // TODO (PART 1): Implement this
         int serverTxID = responseBuffer.getShort(0);
         int flagBits = responseBuffer.get(2);
         boolean isResponse = ((flagBits >>> 7) & 1) != 0;
@@ -219,30 +217,60 @@ public class DNSQueryHandler {
         String queryName = decodeName(responseBuffer);
         decodeCounter += 4; // Move past 4 bytes of irrelevant query data
 
-        // TODO: Testing that we are in the first name answer record section now
-        String ansName = decodeName(responseBuffer);
-        // TODO:
-        /*
-        We may need to have a private DNSQueryHandler.bufferPos int to share between decodeAndCacheResponse and decodeName to keep
-        track of where we currently are in the buffer. Consider the case label + pointer. In decodeName, have a flag that toggles
-        on first encounter of a pointer. In that first encounter, save the current position + 2, so we resume after the pointer
-         */
-
-
         // Should now be in the Answers Section
         // Check # resources records, then do below
-//        if (ansCount + nsCount + arCount > 0) {
-//            while (buffPos < buffer.length ) {
-//
-//
-//            // Decode a name
-//            String name = decodeName(responseBuffer);
-//
-//            // Based on Type (A, NS, CNAME), parse the bytes after the name differently then create the resource record
-//
-//
-//            }
-//        }
+        for (int j = 0; j < ansCount + nsCount + arCount; j++) {
+            String ansName = decodeName(responseBuffer);
+            RecordType recordType = RecordType.getByCode(responseBuffer.getShort(decodeCounter));
+            decodeCounter += 4; // move past type and class
+            int ttl = responseBuffer.getInt(decodeCounter);
+            decodeCounter += 4; // move past TTL
+            int rdLength = responseBuffer.getShort(decodeCounter);
+            decodeCounter += 2; // move past data length
+
+            switch (recordType) {
+                case A:
+                    byte[] ipv4AddressBytes = new byte[4];
+                    for (int i = 0; i < 4; i++) {
+                        ipv4AddressBytes[i] = responseBuffer.get(decodeCounter);
+                        decodeCounter++;
+                    }
+                    try {
+                        InetAddress ipv4Address = InetAddress.getByAddress(ipv4AddressBytes);
+                        new ResourceRecord(ansName, recordType, ttl, ipv4Address);
+
+                    } catch (UnknownHostException e) {
+                        System.err.println("Invalid IP Address (" + e.getMessage() + ").");
+                    }
+                    break;
+
+                case AAAA:
+                    byte[] ipv6AddressBytes = new byte[16];
+                    for (int i = 0; i < 16; i++) {
+                        ipv6AddressBytes[i] = responseBuffer.get(decodeCounter);
+                        decodeCounter++;
+                    }
+                    try {
+                        InetAddress ipv6Address = InetAddress.getByAddress(ipv6AddressBytes);
+                        new ResourceRecord(ansName, recordType, ttl, ipv6Address);
+
+                    } catch (UnknownHostException e) {
+                        System.err.println("Invalid IP Address (" + e.getMessage() + ").");
+                    }
+                    break;
+
+                case NS:
+
+                case CNAME:
+                    String rData = decodeName(responseBuffer);
+                    new ResourceRecord(ansName, recordType, ttl, rData);
+                    break;
+
+                default:
+                    decodeCounter += rdLength;
+                    break;
+            }
+        }
 
         return null;
     }
