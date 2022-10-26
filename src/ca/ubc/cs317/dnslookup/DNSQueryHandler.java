@@ -242,6 +242,7 @@ public class DNSQueryHandler {
                         ResourceRecord newRecord = new ResourceRecord(ansName, recordType, ttl, ipv4Address);
                         cache.addResult(newRecord);
                         nameServersResponse.add(newRecord);
+                        verbosePrintResourceRecord(newRecord, newRecord.getType().getCode());
                     } catch (UnknownHostException e) {
                         System.err.println("Invalid IP Address (" + e.getMessage() + ").");
                     }
@@ -258,6 +259,7 @@ public class DNSQueryHandler {
                         ResourceRecord newRecord = new ResourceRecord(ansName, recordType, ttl, ipv6Address);
                         cache.addResult(newRecord);
                         nameServersResponse.add(newRecord);
+                        verbosePrintResourceRecord(newRecord, newRecord.getType().getCode());
                     } catch (UnknownHostException e) {
                         System.err.println("Invalid IP Address (" + e.getMessage() + ").");
                     }
@@ -270,6 +272,7 @@ public class DNSQueryHandler {
                     ResourceRecord newRecord = new ResourceRecord(ansName, recordType, ttl, rData);
                     cache.addResult(newRecord);
                     nameServersResponse.add(newRecord);
+                    verbosePrintResourceRecord(newRecord, newRecord.getType().getCode());
                     break;
 
                 default:
