@@ -6,10 +6,7 @@ import java.io.IOException;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 
 public class DNSQueryHandler {
 
@@ -69,10 +66,10 @@ public class DNSQueryHandler {
 
         // QR | OPCODE | AA section and response code sections:
         int queryCodes = 0;
-//        nameDataOutputStream.writeShort(queryCodes); // UNCOMMENT THIS LINE
-        // TODO: CHANGE THIS BACK BEFORE FINAL SUBMISSION
-        nameDataOutputStream.writeByte(1); //REMOVE THIS LINE - REQUESTS RECURSION
-        nameDataOutputStream.writeByte(0); //REMOVE THIS LINE
+        nameDataOutputStream.writeShort(queryCodes); // UNCOMMENT THIS LINE
+//        // TODO: COMMENT THIS BEFORE FINAL SUBMISSION
+//        nameDataOutputStream.writeByte(1); //REMOVE THIS LINE - REQUESTS RECURSION - FOR TESTING ONLY
+//        nameDataOutputStream.writeByte(0); //REMOVE THIS LINE
 
         // QDCOUNT - We only send 1 question with each query
         int queryCount = 1;
@@ -160,7 +157,7 @@ public class DNSQueryHandler {
         // Function to get the name / cname
         byte[] buffer = responseBuffer.array();
         List<String> nameParts = new ArrayList<String>();
-        
+
         boolean pointerEncountered = false;
         int restoreBuffPosAfterPointer = 0;
 
@@ -201,24 +198,29 @@ public class DNSQueryHandler {
      */
     public static Set<ResourceRecord> decodeAndCacheResponse(int transactionID, ByteBuffer responseBuffer,
                                                              DNSCache cache) {
-        int serverTxID = responseBuffer.getShort(0);
+        int serverTxID = responseBuffer.getShort(0); // serverTxID from response should agree with transactionID from originating query
         int flagBits = responseBuffer.get(2);
         boolean isResponse = ((flagBits >>> 7) & 1) != 0;
         boolean isAuthoritativeAns = ((flagBits >>> 3) & 1) != 0;
         int responseCode = responseBuffer.get(3) & 15; // 0 if no error,  1 - 5 means errors
+        int qCount = responseBuffer.getShort(4);
         int ansCount = responseBuffer.getShort(6);
         int nsCount = responseBuffer.getShort(8);
         int arCount = responseBuffer.getShort(10);
 
-        byte[] buffer = responseBuffer.array();
-        decodeCounter = 12;
+        decodeCounter = 12; // Start counter after the header info
 
         // Process query question section
-        String queryName = decodeName(responseBuffer);
-        decodeCounter += 4; // Move past 4 bytes of irrelevant query data
+        for (int i = 0; i < qCount; i++) {
+            String queryName = decodeName(responseBuffer);
+            decodeCounter += 4; // Move past 4 bytes of irrelevant query data
+        }
+
+        // Create a set to hold Answer, Authority,  and Additional Record
+        Set<ResourceRecord> nameServersResponse = new HashSet<ResourceRecord>();
 
         // Should now be in the Answers Section
-        // Check # resources records, then do below
+        // Create resource records for all the response
         for (int j = 0; j < ansCount + nsCount + arCount; j++) {
             String ansName = decodeName(responseBuffer);
             RecordType recordType = RecordType.getByCode(responseBuffer.getShort(decodeCounter));
@@ -237,8 +239,9 @@ public class DNSQueryHandler {
                     }
                     try {
                         InetAddress ipv4Address = InetAddress.getByAddress(ipv4AddressBytes);
-                        new ResourceRecord(ansName, recordType, ttl, ipv4Address);
-
+                        ResourceRecord newRecord = new ResourceRecord(ansName, recordType, ttl, ipv4Address);
+                        cache.addResult(newRecord);
+                        nameServersResponse.add(newRecord);
                     } catch (UnknownHostException e) {
                         System.err.println("Invalid IP Address (" + e.getMessage() + ").");
                     }
@@ -252,8 +255,9 @@ public class DNSQueryHandler {
                     }
                     try {
                         InetAddress ipv6Address = InetAddress.getByAddress(ipv6AddressBytes);
-                        new ResourceRecord(ansName, recordType, ttl, ipv6Address);
-
+                        ResourceRecord newRecord = new ResourceRecord(ansName, recordType, ttl, ipv6Address);
+                        cache.addResult(newRecord);
+                        nameServersResponse.add(newRecord);
                     } catch (UnknownHostException e) {
                         System.err.println("Invalid IP Address (" + e.getMessage() + ").");
                     }
@@ -263,7 +267,9 @@ public class DNSQueryHandler {
 
                 case CNAME:
                     String rData = decodeName(responseBuffer);
-                    new ResourceRecord(ansName, recordType, ttl, rData);
+                    ResourceRecord newRecord = new ResourceRecord(ansName, recordType, ttl, rData);
+                    cache.addResult(newRecord);
+                    nameServersResponse.add(newRecord);
                     break;
 
                 default:
@@ -272,7 +278,7 @@ public class DNSQueryHandler {
             }
         }
 
-        return null;
+        return nameServersResponse;
     }
 
     /**
