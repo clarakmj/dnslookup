@@ -204,10 +204,10 @@ public class DNSQueryHandler {
         boolean isResponse = ((flagBits >>> 7) & 1) != 0;
         boolean isAuthoritativeAns = ((flagBits >>> 3) & 1) != 0;
         int responseCode = responseBuffer.get(3) & 15; // 0 if no error,  1 - 5 means errors
-        int qCount = responseBuffer.getShort(4);
-        int ansCount = responseBuffer.getShort(6);
-        int nsCount = responseBuffer.getShort(8);
-        int arCount = responseBuffer.getShort(10);
+        int qCount = Short.toUnsignedInt(responseBuffer.getShort(4));
+        int ansCount = Short.toUnsignedInt(responseBuffer.getShort(6));
+        int nsCount = Short.toUnsignedInt(responseBuffer.getShort(8));
+        int arCount = Short.toUnsignedInt(responseBuffer.getShort(10));
 
         decodeCounter = 12; // Start counter after the header info
 
@@ -239,11 +239,11 @@ public class DNSQueryHandler {
             }
 
             String ansName = decodeName(responseBuffer);
-            RecordType recordType = RecordType.getByCode(responseBuffer.getShort(decodeCounter));
+            RecordType recordType = RecordType.getByCode(Short.toUnsignedInt(responseBuffer.getShort(decodeCounter)));
             decodeCounter += 4; // move past type and class
             int ttl = responseBuffer.getInt(decodeCounter);
             decodeCounter += 4; // move past TTL
-            int rdLength = responseBuffer.getShort(decodeCounter);
+            int rdLength = Short.toUnsignedInt(responseBuffer.getShort(decodeCounter));
             decodeCounter += 2; // move past data length
 
             switch (recordType) {
