@@ -114,7 +114,7 @@ public class DNSQueryHandler {
         if (verboseTracing) {
             System.out.println("");
             System.out.println("");
-            System.out.println("Query ID     " + queryID + " " + name + "  " + node.getType().name() + " --> " + server.toString().substring(1));
+            System.out.println("Query ID     " + queryID + " " + name + "  " + node.getType().name() + " --> " + server.getHostAddress());
         }
 
         byte[] responseData = new byte[1024];
@@ -133,7 +133,7 @@ public class DNSQueryHandler {
                 if (verboseTracing) {
                     System.out.println("");
                     System.out.println("");
-                    System.out.println("Query ID     " + queryID + " " + name + "  " + node.getType().name() + " --> " + server.toString().substring(1));
+                    System.out.println("Query ID     " + queryID + " " + name + "  " + node.getType().name() + " --> " + server.getHostAddress());
                 }
                 while (true) {
                     try {
@@ -220,21 +220,38 @@ public class DNSQueryHandler {
         // Create a set to hold Answer, Authority,  and Additional Record
         Set<ResourceRecord> nameServersResponse = new HashSet<ResourceRecord>();
 
+        boolean ansHeaderPrinted = false;
+        boolean nsHeaderPrinted = false;
+        boolean arHeaderPrinted = false;
+
         // Verbose Printing Response Header
         if (verboseTracing) {
             System.out.println("Response ID: " + String.valueOf(serverTxID) + " " + "Authoritative" + " = " + String.valueOf(isAuthoritativeAns));
-            System.out.println("  Answers (" + String.valueOf(ansCount) + ")");
+            if (ansCount == 0 && nsCount == 0 && arCount == 0) {
+                System.out.println("  Answers (0)");
+                System.out.println("  Nameservers (0)");
+                System.out.println("  Additional Information (0)");
+                ansHeaderPrinted = true;
+                nsHeaderPrinted = true;
+                arHeaderPrinted = true;
+            }
         }
 
         // Should now be in the Answers Section
         // Create resource records for all the response
         for (int j = 0; j < ansCount + nsCount + arCount; j++) {
             if (verboseTracing) {
+                if (j == 0) {
+                    System.out.println("  Answers (" + String.valueOf(ansCount) + ")");
+                    ansHeaderPrinted = true;
+                }
                 if (j == ansCount) {
                     System.out.println("  Nameservers (" + String.valueOf(nsCount) + ")");
+                    nsHeaderPrinted = true;
                 }
                 if (j == ansCount + nsCount) {
                     System.out.println("  Additional Information (" + String.valueOf(arCount) + ")");
+                    arHeaderPrinted = true;
                 }
             }
 
@@ -294,6 +311,21 @@ public class DNSQueryHandler {
                 default:
                     decodeCounter += rdLength;
                     break;
+            }
+        }
+
+        if (verboseTracing) {
+            if (!ansHeaderPrinted) {
+                System.out.println("  Answers (" + String.valueOf(ansCount) + ")");
+                ansHeaderPrinted = true;
+            }
+            if (!nsHeaderPrinted && ansHeaderPrinted) {
+                System.out.println("  Nameservers (" + String.valueOf(nsCount) + ")");
+                nsHeaderPrinted = true;
+            }
+            if (!arHeaderPrinted && nsHeaderPrinted && ansHeaderPrinted) {
+                System.out.println("  Additional Information (" + String.valueOf(arCount) + ")");
+                arHeaderPrinted = true;
             }
         }
 
