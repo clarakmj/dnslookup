@@ -150,21 +150,10 @@ public class DNSQueryHandler {
         }
     }
 
+    /**
+     * Helper method that takes in a ByteBuffer containing the DNS response, and iterates through it decoding labels and pointers to retrieve names
+     */
     public static String decodeName(ByteBuffer responseBuffer) {
-
-//        //TODO: For testing only, remove this entire codeblock when done
-//        String temp = "www.cs.ubc.ca";
-//        String[] tempParts = temp.split("\\.");
-//        ByteArrayOutputStream nameBytesOutputStream = new ByteArrayOutputStream();
-//        DataOutputStream nameDataOutputStream = new DataOutputStream(nameBytesOutputStream);
-//        for(int i = 0; i < tempParts.length; i++) {
-//            byte[] domainBytes = tempParts[i].getBytes(StandardCharsets.UTF_8);
-//            nameDataOutputStream.writeByte(domainBytes.length);
-//            nameDataOutputStream.write(domainBytes);
-//        }
-//        nameDataOutputStream.writeByte(0); // 00 byte to end the QNAME
-//        responseBuffer = ByteBuffer.wrap(nameBytesOutputStream.toByteArray());
-//        // delete above
 
         // Function to get the name / cname
         byte[] buffer = responseBuffer.array();
