@@ -199,7 +199,7 @@ public class DNSQueryHandler {
      */
     public static Set<ResourceRecord> decodeAndCacheResponse(int transactionID, ByteBuffer responseBuffer,
                                                              DNSCache cache) {
-        int serverTxID = responseBuffer.getShort(0); // serverTxID from response should agree with transactionID from originating query
+        int serverTxID = Short.toUnsignedInt(responseBuffer.getShort(0)); // serverTxID from response should agree with transactionID from originating query
         int flagBits = responseBuffer.get(2);
         boolean isResponse = ((flagBits >>> 7) & 1) != 0;
         boolean isAuthoritativeAns = ((flagBits >>> 3) & 1) != 0;
