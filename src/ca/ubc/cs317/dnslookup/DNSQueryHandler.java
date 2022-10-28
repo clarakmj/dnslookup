@@ -110,6 +110,13 @@ public class DNSQueryHandler {
         DatagramPacket udpPacketSend = new DatagramPacket(message, message.length, server, DEFAULT_DNS_PORT);
         socket.send(udpPacketSend);
 
+        // Verbose Printing
+        if (verboseTracing) {
+            System.out.println("");
+            System.out.println("");
+            System.out.println("Query ID     " + queryID + " " + name + "  " + node.getType().name() + " --> " + server.toString().substring(1));
+        }
+
         byte[] responseData = new byte[1024];
         DatagramPacket udpPacketReceive = new DatagramPacket(responseData, responseData.length, server, DEFAULT_DNS_PORT);
 
@@ -123,6 +130,11 @@ public class DNSQueryHandler {
                 // Time out after 5 seconds
                 // Send and receive again on first time out
                 socket.send(udpPacketSend);
+                if (verboseTracing) {
+                    System.out.println("");
+                    System.out.println("");
+                    System.out.println("Query ID     " + queryID + " " + name + "  " + node.getType().name() + " --> " + server.toString().substring(1));
+                }
                 while (true) {
                     try {
                         socket.receive(udpPacketReceive);
@@ -219,9 +231,24 @@ public class DNSQueryHandler {
         // Create a set to hold Answer, Authority,  and Additional Record
         Set<ResourceRecord> nameServersResponse = new HashSet<ResourceRecord>();
 
+        // Verbose Printing Response Header
+        if (verboseTracing) {
+            System.out.println("Response ID: " + String.valueOf(serverTxID) + " " + "Authoritative" + " = " + String.valueOf(isAuthoritativeAns));
+            System.out.println("  Answers (" + String.valueOf(ansCount) + ")");
+        }
+
         // Should now be in the Answers Section
         // Create resource records for all the response
         for (int j = 0; j < ansCount + nsCount + arCount; j++) {
+            if (verboseTracing) {
+                if (j == ansCount) {
+                    System.out.println("  Nameservers (" + String.valueOf(nsCount) + ")");
+                }
+                if (j == ansCount + nsCount) {
+                    System.out.println("  Additional Information (" + String.valueOf(arCount) + ")");
+                }
+            }
+
             String ansName = decodeName(responseBuffer);
             RecordType recordType = RecordType.getByCode(responseBuffer.getShort(decodeCounter));
             decodeCounter += 4; // move past type and class
