@@ -254,26 +254,28 @@ public class DNSLookupService {
 
         // Base case: Check if the actual node we want is already in the cache, if so then just return
         Set<ResourceRecord> cachedRes = cache.getCachedResults(node);
-        if (cachedRes.size() > 0) {
+        if (!cachedRes.isEmpty()) {
             return;
         }
 
         // TODO: return if cname base case
+        if (cachedRes.iterator().hasNext()) {
+            cachedRes.iterator().next().getType().equals(RecordType.CNAME);
+            return;
+        }
 
         // We don't have the actual node so we need to check the Authority section for the next level
         for (ResourceRecord record : nameservers) {
-            // Check if the cache has the host name
-            // if so call retrieveResultsFromServer with the same node
-            // otherwise as a last resort, make a call to the root server with the NS record's textResult as the host name
             // TODO: should we be checking if AAAA already exists in the cache too?
             DNSNode newNode = new DNSNode(record.getTextResult(), RecordType.A);
             Set<ResourceRecord> results = cache.getCachedResults(newNode);
             if (!results.isEmpty()) {
-            // Cache has results
+            // Cache has results, either bc we queried before or it was in the additional records
                 retrieveResultsFromServer(node, results.iterator().next().getInetResult());
                 return;
             } else {
-            // TODO: Cache doesn't have results. Make a call to the root server with the NS record hostname
+            // TODO: Cache doesn't have results. Exists in the Authority Section but not provided in Additional
+            // Make a call to the root server with the NS record text result name
                 System.out.println();
             }
         }
