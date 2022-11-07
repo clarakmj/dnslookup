@@ -268,15 +268,37 @@ public class DNSLookupService {
             Set<ResourceRecord> results = cache.getCachedResults(newNode);
             if (!results.isEmpty()) {
             // Cache has results, either bc we queried before or it was in the additional records
-                retrieveResultsFromServer(node, results.iterator().next().getInetResult());
-                return;
+                for (ResourceRecord result : results) {
+                    retrieveResultsFromServer(node, result.getInetResult());
+                    // Check if we got an answer at that level
+                    if (!cache.getCachedResults(node).isEmpty()) {
+                        return;
+                    }
+                    // Check if CNAME was received at that level
+                    DNSNode cNameNode = new DNSNode(node.getHostName(), RecordType.CNAME);
+                    if (!cache.getCachedResults(cNameNode).isEmpty()) {
+                        return;
+                    }
+
+                }
+//                return;
             } else {
             // Make a call to the root server with the NS record text result name
                 retrieveResultsFromServer(newNode, rootServer);
             // Retrieve the newNode from the cache and retrieveResultsFromServer to it using the original node and newNode ip address
                 Set<ResourceRecord> middleDNSRecordResults = cache.getCachedResults(newNode);
-                retrieveResultsFromServer(node, middleDNSRecordResults.iterator().next().getInetResult());
-                return;
+                for (ResourceRecord result : middleDNSRecordResults) {
+                    retrieveResultsFromServer(node, result.getInetResult());
+                    // Check if we got an answer at that level
+                    if (!cache.getCachedResults(node).isEmpty()) {
+                        return;
+                    }
+                    // Check if CNAME was received at that level
+                    DNSNode cNameNode = new DNSNode(node.getHostName(), RecordType.CNAME);
+                    if (!cache.getCachedResults(cNameNode).isEmpty()) {
+                        return;
+                    }
+                }
             }
         }
 
