@@ -274,7 +274,6 @@ public class DNSQueryHandler {
                         InetAddress ipv4Address = InetAddress.getByAddress(ipv4AddressBytes);
                         ResourceRecord newRecord = new ResourceRecord(ansName, recordType, ttl, ipv4Address);
                         cache.addResult(newRecord);
-                        nameServersResponse.add(newRecord);
                         verbosePrintResourceRecord(newRecord, newRecord.getType().getCode());
                     } catch (UnknownHostException e) {
                         System.err.println("Invalid IP Address (" + e.getMessage() + ").");
@@ -291,7 +290,6 @@ public class DNSQueryHandler {
                         InetAddress ipv6Address = InetAddress.getByAddress(ipv6AddressBytes);
                         ResourceRecord newRecord = new ResourceRecord(ansName, recordType, ttl, ipv6Address);
                         cache.addResult(newRecord);
-                        nameServersResponse.add(newRecord);
                         verbosePrintResourceRecord(newRecord, newRecord.getType().getCode());
                     } catch (UnknownHostException e) {
                         System.err.println("Invalid IP Address (" + e.getMessage() + ").");
@@ -299,13 +297,18 @@ public class DNSQueryHandler {
                     break;
 
                 case NS:
-
-                case CNAME:
                     String rData = decodeName(responseBuffer);
                     ResourceRecord newRecord = new ResourceRecord(ansName, recordType, ttl, rData);
                     cache.addResult(newRecord);
                     nameServersResponse.add(newRecord);
                     verbosePrintResourceRecord(newRecord, newRecord.getType().getCode());
+                    break;
+
+                case CNAME:
+                    String cNameData = decodeName(responseBuffer);
+                    ResourceRecord newCNameRecord = new ResourceRecord(ansName, recordType, ttl, cNameData);
+                    cache.addResult(newCNameRecord);
+                    verbosePrintResourceRecord(newCNameRecord, newCNameRecord.getType().getCode());
                     break;
 
                 default:

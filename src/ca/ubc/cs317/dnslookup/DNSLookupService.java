@@ -183,11 +183,14 @@ public class DNSLookupService {
             for (ResourceRecord rr : cachedRes) {
                 DNSNode node2 = new DNSNode(rr.getTextResult(), node.getType());
                 Set<ResourceRecord> res = getResults(node2, (indirectionLevel+1));
-                for (ResourceRecord r : res) {
-                    ResourceRecord newRecord = new ResourceRecord(node.getHostName(), node.getType(), r.getTTL(), r.getInetResult());
-                    cache.addResult(newRecord);
+//                for (ResourceRecord r : res) {
+//                    ResourceRecord newRecord = new ResourceRecord(node.getHostName(), node.getType(), r.getTTL(), r.getInetResult());
+//                    cache.addResult(newRecord);
+//                }
+                // TODO: Check other CNAMES if results for that CNAME is empty before returning
+                if (!res.isEmpty()) {
+                    return res;
                 }
-                return cache.getCachedResults(node);
             }
         }
 
@@ -197,17 +200,16 @@ public class DNSLookupService {
         if (cachedRes.size() > 0) {
             return cachedRes;
         }
+
         // check CNAME
         Set<ResourceRecord> records = cache.getCachedResults(new DNSNode(node.getHostName(), RecordType.CNAME));
         if (records.size() > 0) {
             for (ResourceRecord r1 : records) {
                 DNSNode node3 = new DNSNode(r1.getTextResult(), node.getType());
                 Set<ResourceRecord> res = getResults(node3, (indirectionLevel+1));
-                for (ResourceRecord r2 : res) {
-                    ResourceRecord newRecord = new ResourceRecord(node.getHostName(), node.getType(), r2.getTTL(), r2.getInetResult());
-                    cache.addResult(newRecord);
+                if (!res.isEmpty()) {
+                    return res;
                 }
-                return cache.getCachedResults(node);
             }
         }
 
@@ -249,35 +251,33 @@ public class DNSLookupService {
      */
     private static void queryNextLevel(DNSNode node, Set<ResourceRecord> nameservers) {
         // TODO (PART 2): Implement this
-        // results from decodeAndCacheResponse
-        // take the nameservers, go through additional information to do next query until answer found
-        // use indirection level to stop querying
 
-        String hostName = node.getHostName();
-        // append results to ans
-        Set<ResourceRecord> ans = Collections.emptySet();
-        
-        while (true) {
-            Set<ResourceRecord> results = cache.getCachedResults(new DNSNode(hostName, RecordType.NS));
-            if (results.size() > 0) {
-                for (ResourceRecord r : results) {
-                    Set<ResourceRecord> res = cache.getCachedResults(new DNSNode(r.getHostName(), RecordType.A));
-                    for (ResourceRecord rr : res) {
-                        ans.add(rr);
-                    }
-                }
+        // Base case: Check if the actual node we want is already in the cache, if so then just return
+        Set<ResourceRecord> cachedRes = cache.getCachedResults(node);
+        if (cachedRes.size() > 0) {
+            return;
+        }
+
+        // TODO: return if cname base case
+
+        // We don't have the actual node so we need to check the Authority section for the next level
+        for (ResourceRecord record : nameservers) {
+            // Check if the cache has the host name
+            // if so call retrieveResultsFromServer with the same node
+            // otherwise as a last resort, make a call to the root server with the NS record's textResult as the host name
+            // TODO: should we be checking if AAAA already exists in the cache too?
+            DNSNode newNode = new DNSNode(record.getTextResult(), RecordType.A);
+            Set<ResourceRecord> results = cache.getCachedResults(newNode);
+            if (!results.isEmpty()) {
+            // Cache has results
+                retrieveResultsFromServer(node, results.iterator().next().getInetResult());
+                return;
             } else {
-                //
+            // TODO: Cache doesn't have results. Make a call to the root server with the NS record hostname
+                System.out.println();
             }
         }
 
-        // for (ResourceRecord rr : nameservers) {
-        //     String textResult = rr.getTextResult();
-        //     RecordType type = rr.getType();
-        //     if (type == RecordType.A || type == RecordType.AAAA) {
-        //         DNSNode n = new DNSNode(textResult, type);
-        //     }
-        // }
     }
 
     /**
