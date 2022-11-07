@@ -250,15 +250,13 @@ public class DNSLookupService {
      * @param nameservers List of name servers returned from the previous level to query the next level.
      */
     private static void queryNextLevel(DNSNode node, Set<ResourceRecord> nameservers) {
-        // TODO (PART 2): Implement this
-
         // Base case: Check if the actual node we want is already in the cache, if so then just return
         Set<ResourceRecord> cachedRes = cache.getCachedResults(node);
         if (!cachedRes.isEmpty()) {
             return;
         }
 
-        // TODO: return if cname base case
+        // Return if cname base case
         if (cachedRes.iterator().hasNext()) {
             cachedRes.iterator().next().getType().equals(RecordType.CNAME);
             return;
@@ -266,7 +264,6 @@ public class DNSLookupService {
 
         // We don't have the actual node so we need to check the Authority section for the next level
         for (ResourceRecord record : nameservers) {
-            // TODO: should we be checking if AAAA already exists in the cache too?
             DNSNode newNode = new DNSNode(record.getTextResult(), RecordType.A);
             Set<ResourceRecord> results = cache.getCachedResults(newNode);
             if (!results.isEmpty()) {
@@ -274,9 +271,12 @@ public class DNSLookupService {
                 retrieveResultsFromServer(node, results.iterator().next().getInetResult());
                 return;
             } else {
-            // TODO: Cache doesn't have results. Exists in the Authority Section but not provided in Additional
             // Make a call to the root server with the NS record text result name
-                System.out.println();
+                retrieveResultsFromServer(newNode, rootServer);
+            // Retrieve the newNode from the cache and retrieveResultsFromServer to it using the original node and newNode ip address
+                Set<ResourceRecord> middleDNSRecordResults = cache.getCachedResults(newNode);
+                retrieveResultsFromServer(node, middleDNSRecordResults.iterator().next().getInetResult());
+                return;
             }
         }
 
