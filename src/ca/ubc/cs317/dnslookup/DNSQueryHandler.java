@@ -172,7 +172,7 @@ public class DNSQueryHandler {
                 }
                 decodeCounter = offset;
             } else {
-                int length = responseBuffer.get(decodeCounter) & 15; // 15 == 001111 in binary
+                int length = responseBuffer.get(decodeCounter);
                 StringBuffer sb = new StringBuffer();
                 for (int i = decodeCounter + 1; i < decodeCounter + length + 1 ; i++) {
                     sb.append((char) responseBuffer.get(i));
