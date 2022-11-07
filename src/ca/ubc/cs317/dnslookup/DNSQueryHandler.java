@@ -202,7 +202,7 @@ public class DNSQueryHandler {
         int serverTxID = Short.toUnsignedInt(responseBuffer.getShort(0)); // serverTxID from response should agree with transactionID from originating query
         int flagBits = responseBuffer.get(2);
         boolean isResponse = ((flagBits >>> 7) & 1) != 0;
-        boolean isAuthoritativeAns = ((flagBits >>> 3) & 1) != 0;
+        boolean isAuthoritativeAns = ((flagBits >>> 2) & 1) != 0;
         int responseCode = responseBuffer.get(3) & 15; // 0 if no error,  1 - 5 means errors
         int qCount = Short.toUnsignedInt(responseBuffer.getShort(4));
         int ansCount = Short.toUnsignedInt(responseBuffer.getShort(6));
@@ -309,6 +309,12 @@ public class DNSQueryHandler {
                     ResourceRecord newCNameRecord = new ResourceRecord(ansName, recordType, ttl, cNameData);
                     cache.addResult(newCNameRecord);
                     verbosePrintResourceRecord(newCNameRecord, newCNameRecord.getType().getCode());
+                    break;
+
+                case SOA:
+                    String soaData = "----";
+                    ResourceRecord soaRecord = new ResourceRecord(ansName, recordType, ttl, soaData);
+                    verbosePrintResourceRecord(soaRecord, soaRecord.getType().getCode());
                     break;
 
                 default:
