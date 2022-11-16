@@ -1,4 +1,5 @@
 Total before late penalty: [76/78]
+    ***Total after 100.0% late penalty is 0.0
 
 Milestone marking: [15/15] this part is effort based, not correctness based marking
 encode [5/5]
@@ -114,3 +115,4 @@ MARKER'S ADDITIONAL COMMENTS:
 
 -2 expect -1 0.0.0.0 to be returned but only receive max indireciton level reached
 Good work overall
+
